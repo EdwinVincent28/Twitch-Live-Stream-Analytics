@@ -16,5 +16,6 @@ const chatMessageSchema = new mongoose.Schema({
 
 chatMessageSchema.index({ channel: 1, timestamp: -1 });
 chatMessageSchema.index({ username: 1 });
+chatMessageSchema.index({ timestamp: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 7 });
 
 module.exports = mongoose.model('ChatMessage', chatMessageSchema);
