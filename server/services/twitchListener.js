@@ -1,7 +1,7 @@
 const tmi = require('tmi.js');
 const { redisClient } = require('../config/db');
 
-const CHANNEL = process.env.TWITCH_CHANNEL || 'tarik';
+const CHANNEL = (process.env.TWITCH_CHANNEL || 'tarik').toLowerCase();
 const REDIS_CHAT_KEY = `chat:${CHANNEL}`;
 
 const twitchClient = new tmi.Client({
