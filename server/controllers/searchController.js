@@ -1,5 +1,6 @@
 const { getEmbedder } = require('../services/qdrantChunker');
 const { qdrantClient } = require('../config/db');
+const { generateAnswer } = require('../services/llmService');
 
 const CHANNEL = (process.env.TWITCH_CHANNEL || 'tarik').toLowerCase();
 const COLLECTION_NAME = `chat_chunks_${CHANNEL}`;
@@ -32,9 +33,13 @@ async function searchChat(req, res) {
             preview:       result.payload.text.slice(0, 200) + '...',
         }));
 
+        const top3 = formatted.slice(0, 3);
+        const answer = await generateAnswer(query, top3);
+
         return res.status(200).json({
             query,
-            results: formatted,
+            answer,
+            sources: formatted,
             total: formatted.length,
         });
 
