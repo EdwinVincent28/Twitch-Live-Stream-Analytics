@@ -4,8 +4,12 @@ const { connectDatabases } = require('./config/db');
 const { startTwitchListener } = require('./services/twitchListener');
 const { startDrainer } = require('./services/mongoDrainer');
 const { startChunker } = require('./services/qdrantChunker');
+const searchRoute = require('./routes/searchRoute');
+
 const app = express();
 app.use(express.json());
+
+app.use('/api/search', searchRoute);
 
 async function startServer() {
     try {

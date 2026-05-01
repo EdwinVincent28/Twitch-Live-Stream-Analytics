@@ -14,6 +14,10 @@ async function initEmbedder() {
     console.log('Embedding model ready');
 }
 
+function getEmbedder() {
+    return embedder;
+}
+
 async function ensureCollection() {
     const { collections } = await qdrantClient.getCollections();
     const exists = collections.some(c => c.name === COLLECTION_NAME);
@@ -102,4 +106,4 @@ async function startChunker() {
     setInterval(chunkAndEmbed, CHUNK_INTERVAL_MS);
 }
 
-module.exports = { startChunker };
+module.exports = { startChunker, getEmbedder };
