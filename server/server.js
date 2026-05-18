@@ -6,21 +6,31 @@ const { startDrainer } = require('./services/mongoDrainer');
 const { startChunker } = require('./services/qdrantChunker');
 const searchRoute = require('./routes/searchRoute');
 
+const http = require('http');
+const cors = require('cors');
+const { Server } = require('socket.io');
+
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 app.use('/api/search', searchRoute);
+
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: { origin: "*" } 
+});
 
 async function startServer() {
     try {
         console.log('Starting database connections...');
         await connectDatabases();
-        await startTwitchListener();
+        await startTwitchListener(io);
         startDrainer();
         await startChunker();
 
         const PORT = process.env.PORT || 5000;
-        app.listen(PORT, () => {
+        server.listen(PORT, () => {
             console.log(`Server running on http://localhost:${PORT}`);
         });
 

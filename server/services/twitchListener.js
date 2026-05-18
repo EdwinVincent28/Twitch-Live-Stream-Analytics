@@ -10,7 +10,7 @@ const twitchClient = new tmi.Client({
     channels: [CHANNEL]
 });
 
-async function startTwitchListener() {
+async function startTwitchListener(io) {
     await twitchClient.connect();
     console.log(`Twitch chat connected to: #${CHANNEL}`);
 
@@ -23,7 +23,7 @@ async function startTwitchListener() {
             message,
             timestamp: new Date(),
             tags: {
-                color:      tags.color,
+                color:      tags.color || '#ffffff',
                 subscriber: tags.subscriber,
                 mod:        tags.mod,
                 vip:        tags.vip ?? false,
@@ -31,8 +31,12 @@ async function startTwitchListener() {
             }
         });
 
+        if (io) {
+            io.emit('chat_message', payload);
+        }
+
         try {
-            await redisClient.lPush(REDIS_CHAT_KEY, payload);
+            await redisClient.lPush(REDIS_CHAT_KEY, JSON.stringify(payload));
         } catch (err) {
             console.error('Redis push failed:', err.message);
         }
