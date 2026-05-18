@@ -6,7 +6,7 @@ const socket = io("http://localhost:5000");
 
 export default function LiveFeed() {
   const [messages, setMessages] = useState([]);
-  const bottomRef = useRef(null);
+  const scrollContainerRef = useRef(null);
 
   useEffect(() => {
     socket.on("chat_message", (incomingMsg) => {
@@ -33,7 +33,13 @@ export default function LiveFeed() {
   }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: "smooth"
+      });
+    }
   }, [messages]);
 
   return (
@@ -50,6 +56,10 @@ export default function LiveFeed() {
       </div>
 
       <div className="flex-1 overflow-y-auto flex flex-col gap-1 min-h-0 max-h-[280px] pr-1">
+        <div 
+          ref={scrollContainerRef} 
+          className="flex-1 overflow-y-auto flex flex-col gap-1 min-h-0 max-h-[280px] pr-1"
+        >
         {messages.map(msg => (
           <div key={msg.id} className="msg-enter flex items-start gap-2 py-1 px-2 rounded hover:bg-muted/30 transition-colors group">
             <span className="text-[10px] font-mono text-muted-foreground mt-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -68,7 +78,7 @@ export default function LiveFeed() {
             </div>
           </div>
         ))}
-        <div ref={bottomRef} />
+        </div>
       </div>
     </div>
   );
