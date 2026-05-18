@@ -18,7 +18,7 @@ async function startTwitchListener(io) {
     twitchClient.on('message', async (channel, tags, message, self) => {
         if (self) return;
 
-        const payload = JSON.stringify({
+        const payload = {
             channel:  channel.replace('#', ''),
             username: tags['display-name'] || tags.username,
             message,
@@ -30,7 +30,7 @@ async function startTwitchListener(io) {
                 vip:        tags.vip ?? false,
                 emotes:     tags.emotes,
             }
-        });
+        };
 
         if (io) {
             io.emit('chat_message', payload);

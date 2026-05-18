@@ -1,36 +1,35 @@
 import { useEffect, useRef, useState } from "react";
 import { MessageSquare } from "lucide-react";
+import { io } from "socket.io-client";
 
-const SAMPLE_MSGS = [
-  { username: "xG0dSlayer", message: "W W W W PogChamp", color: "#9b59b6", subscriber: true },
-  { username: "lowkeyfan99", message: "chat is so dead lol", color: "#3498db", subscriber: false },
-  { username: "ValorantPro44", message: "KEKW KEKW he's cooked", color: "#e74c3c", subscriber: true },
-  { username: "chillvibes_", message: "this is actually insane bro", color: "#2ecc71", subscriber: false },
-  { username: "NotABot1234", message: "BAND BAND BAND", color: "#f39c12", subscriber: true },
-  { username: "MATSUZAKA", message: "o7 o7 respect the goat", color: "#1abc9c", subscriber: false },
-  { username: "Reaper0096", message: "W only W players here", color: "#e74c3c", subscriber: true },
-  { username: "streamsnipr", message: "Copium Copium Copium", color: "#9b59b6", subscriber: false },
-  { username: "FloBuerste", message: "bro what is this gameplay LULW", color: "#3498db", subscriber: true },
-  { username: "ToasteyAF", message: "ACE ACE ACE PogChamp", color: "#f39c12", subscriber: false },
-];
-
-let msgIndex = 0;
+const socket = io("http://localhost:5000");
 
 export default function LiveFeed() {
   const [messages, setMessages] = useState([]);
   const bottomRef = useRef(null);
 
   useEffect(() => {
-    const t = setInterval(() => {
-      const msg = {
-        ...SAMPLE_MSGS[msgIndex % SAMPLE_MSGS.length],
-        id: Date.now() + Math.random(),
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+    socket.on("chat_message", (incomingMsg) => {
+      const formattedMsg = {
+        id: Date.now() + Math.random(), 
+        username: incomingMsg.username,
+        message: incomingMsg.message,
+        color: incomingMsg.tags?.color || "#ffffff",
+        subscriber: incomingMsg.tags?.subscriber || false,
+        timestamp: new Date(incomingMsg.timestamp).toLocaleTimeString([], { 
+          hour: "2-digit", 
+          minute: "2-digit", 
+          second: "2-digit" 
+        }),
       };
-      msgIndex++;
-      setMessages(prev => [...prev.slice(-49), msg]);
-    }, 400 + Math.random() * 600);
-    return () => clearInterval(t);
+
+      setMessages(prev => [...prev.slice(-49), formattedMsg]);
+    });
+
+    // 5. Cleanup the listener when the component unmounts
+    return () => {
+      socket.off("chat_message");
+    };
   }, []);
 
   useEffect(() => {
