@@ -1,13 +1,13 @@
 const ChatMessage = require('../models/ChatMessage');
 const { redisClient } = require('../config/db');
-const { REDIS_CHAT_KEY } = require('./twitchListener');
+const { MONGO_QUEUE } = require('./twitchListener');
 
 const BATCH_SIZE = 500;
 const DRAIN_INTERVAL_MS = 5000;
 
 async function drainRedisMongo() {
     try {
-        const batch = await redisClient.lPopCount(REDIS_CHAT_KEY, BATCH_SIZE);
+        const batch = await redisClient.lPopCount(MONGO_QUEUE, BATCH_SIZE);
 
         if (!batch || batch.length === 0) return;
 

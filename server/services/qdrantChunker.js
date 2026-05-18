@@ -1,6 +1,7 @@
 const { pipeline } = require('@xenova/transformers');
 const ChatMessage = require('../models/ChatMessage');
-const { qdrantClient } = require('../config/db');
+const { qdrantClient , redisClient} = require('../config/db');
+const { QDRANT_QUEUE } = require('./twitchListener');
 
 const CHANNEL = (process.env.TWITCH_CHANNEL || 'tarik').toLowerCase();;
 const COLLECTION_NAME = `chat_chunks_${CHANNEL}`;
@@ -57,18 +58,17 @@ function getHypeScore(messageCount, windowSeconds = 15) {
 
 async function chunkAndEmbed() {
     try {
-        const now = new Date();
-        const windowStart = new Date(now - CHUNK_INTERVAL_MS);
+        const rawMessages = await redisClient.lPopCount(QDRANT_QUEUE, 5000);
 
-        const messages = await ChatMessage.find({
-            channel: CHANNEL,
-            timestamp: { $gte: windowStart, $lte: now }
-        }).lean();
-
-        if (messages.length === 0) {
-            console.log('No messages in window, skipping chunk');
+        if (!rawMessages || rawMessages.length === 0) {
+            console.log('No messages in Redis queue, skipping chunk');
             return;
         }
+
+        const messages = rawMessages.map(msg => JSON.parse(msg));
+
+        const now = new Date();
+        const windowStart = new Date(now - CHUNK_INTERVAL_MS);
 
         const text = messages.map(m => m.message).join(' ');
         const dominant_emotes = getDominantEmotes(messages);
@@ -92,7 +92,7 @@ async function chunkAndEmbed() {
             }]
         });
 
-        console.log(`Chunk embedded → Qdrant | msgs: ${messages.length} | hype: ${hype_score}`);
+        console.log(`Chunk embedded to Qdrant | msgs: ${messages.length} | hype: ${hype_score}`);
 
     } catch (err) {
         console.error('Chunker failed:', err.message);
