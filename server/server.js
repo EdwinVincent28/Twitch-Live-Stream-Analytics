@@ -5,6 +5,7 @@ const { startTwitchListener } = require('./services/twitchListener');
 const { startDrainer } = require('./services/mongoDrainer');
 const { startChunker } = require('./services/qdrantChunker');
 const searchRoute = require('./routes/searchRoute');
+const historyRoutes = require('./routes/historyRoutes');
 
 const http = require('http');
 const cors = require('cors');
@@ -15,6 +16,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/search', searchRoute);
+app.use('/api/history', historyRoutes);
 
 const server = http.createServer(app);
 const io = new Server(server, {
