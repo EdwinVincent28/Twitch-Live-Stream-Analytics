@@ -1,37 +1,19 @@
-import { useState } from "react";
-import { Calendar, Search, ChevronLeft, ChevronRight, Crown, Flame, MessageSquare } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Calendar, Search, ChevronLeft, ChevronRight, Crown, Flame, MessageSquare, Loader2 } from "lucide-react";
 
-const MOCK_MESSAGES = [
-  { username: "xG0dSlayer", message: "W W W PogChamp this is insane", color: "#9b59b6", subscriber: true, timestamp: "22:42:11" },
-  { username: "lowkeyfan99", message: "Copium Copium bro missed again", color: "#3498db", subscriber: false, timestamp: "22:42:12" },
-  { username: "ValorantPro44", message: "KEKW KEKW he's so cooked chat", color: "#e74c3c", subscriber: true, timestamp: "22:42:13" },
-  { username: "chillvibes_", message: "this is actually wild bro how", color: "#2ecc71", subscriber: false, timestamp: "22:42:14" },
-  { username: "NotABot1234", message: "BAND BAND BAND get em out of here", color: "#f39c12", subscriber: true, timestamp: "22:42:15" },
-  { username: "MATSUZAKA", message: "o7 o7 respect honestly", color: "#1abc9c", subscriber: false, timestamp: "22:42:17" },
-  { username: "Reaper0096", message: "W only W players in this chat", color: "#e74c3c", subscriber: true, timestamp: "22:42:18" },
-  { username: "streamsnipr", message: "Copium the team diff is real", color: "#9b59b6", subscriber: false, timestamp: "22:42:20" },
-];
-
-const TOP_CHATTERS = [
-  { username: "xG0dSlayer", count: 1842, firstSeen: "2026-01-12", color: "#9b59b6" },
-  { username: "ValorantPro44", count: 1654, firstSeen: "2026-02-03", color: "#e74c3c" },
-  { username: "MATSUZAKA", count: 1421, firstSeen: "2025-12-20", color: "#1abc9c" },
-  { username: "chillvibes_", count: 1198, firstSeen: "2026-03-14", color: "#2ecc71" },
-  { username: "NotABot1234", count: 987, firstSeen: "2026-01-28", color: "#f39c12" },
-];
+const API_URL = import.meta.env.VITE_API_URL;
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function CalendarPicker({ selected, onSelect }) {
-  const [viewDate, setViewDate] = useState(new Date(2026, 4, 1)); // May 2026
+  const [viewDate, setViewDate] = useState(new Date(2026, 4, 1)); 
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  // Mock active days
-  const activeDays = new Set([1, 5, 8, 12, 15, 17, 20, 22, 25, 28, 30]);
+  const activeDays = new Set([1, 5, 8, 12, 15, 17, 18, 19, 20, 22, 25, 28, 30]);
 
   const cells = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
@@ -82,10 +64,62 @@ function CalendarPicker({ selected, onSelect }) {
 }
 
 export default function StreamRewind() {
-  const [selectedDate, setSelectedDate] = useState("2026-5-1");
-  const [search, setSearch] = useState("");
+  const today = new Date();
+  const initialDate = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
 
-  const filtered = MOCK_MESSAGES.filter(m =>
+  const [selectedDate, setSelectedDate] = useState(initialDate);
+  const [search, setSearch] = useState("");
+  
+  const [messages, setMessages] = useState([]);
+  const [topChatters, setTopChatters] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_URL}/api/history?date=${selectedDate}`);
+        if (!res.ok) throw new Error("Failed to fetch data");
+        const data = await res.json();
+        
+        const formattedMsgs = data.map(msg => ({
+          username: msg.username,
+          message: msg.message,
+          color: msg.tags?.color || "#ffffff",
+          subscriber: msg.tags?.subscriber || false,
+          timestamp: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        }));
+
+        setMessages(formattedMsgs);
+
+        const counts = {};
+        data.forEach(m => {
+          if (!counts[m.username]) {
+            counts[m.username] = { count: 0, color: m.tags?.color || "#ffffff" };
+          }
+          counts[m.username].count += 1;
+        });
+
+        const sortedChatters = Object.entries(counts)
+          .map(([username, info]) => ({ username, count: info.count, color: info.color }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5); 
+
+        setTopChatters(sortedChatters);
+
+      } catch (err) {
+        console.error("Failed to fetch history:", err);
+        setMessages([]);
+        setTopChatters([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, [selectedDate]);
+
+  const filtered = messages.filter(m =>
     !search || m.message.toLowerCase().includes(search.toLowerCase()) || m.username.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -107,19 +141,27 @@ export default function StreamRewind() {
             <span className="text-xs font-semibold text-foreground">Top Contributors</span>
           </div>
           <div className="flex flex-col gap-2">
-            {TOP_CHATTERS.map((c, i) => (
-              <div key={c.username} className="flex items-center gap-2.5">
-                <span className="text-[11px] font-bold font-mono text-muted-foreground w-4">{i + 1}</span>
-                <div className="w-5 h-5 rounded-full border border-border flex items-center justify-center" style={{ background: `${c.color}20` }}>
-                  <span className="text-[9px] font-bold" style={{ color: c.color }}>{c.username[0]}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-semibold text-foreground truncate">{c.username}</p>
-                  <p className="text-[10px] text-muted-foreground font-mono">{c.count.toLocaleString()} msgs</p>
-                </div>
-                {i === 0 && <Crown size={10} className="text-[var(--chart-4)] shrink-0" />}
+            {loading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 size={16} className="text-muted-foreground animate-spin" />
               </div>
-            ))}
+            ) : topChatters.length > 0 ? (
+              topChatters.map((c, i) => (
+                <div key={c.username} className="flex items-center gap-2.5">
+                  <span className="text-[11px] font-bold font-mono text-muted-foreground w-4">{i + 1}</span>
+                  <div className="w-5 h-5 rounded-full border border-border flex items-center justify-center" style={{ background: `${c.color}20` }}>
+                    <span className="text-[9px] font-bold" style={{ color: c.color }}>{c.username.charAt(0).toUpperCase()}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-semibold text-foreground truncate">{c.username}</p>
+                    <p className="text-[10px] text-muted-foreground font-mono">{c.count.toLocaleString()} msgs</p>
+                  </div>
+                  {i === 0 && <Crown size={10} className="text-[var(--chart-4)] shrink-0" />}
+                </div>
+              ))
+            ) : (
+              <span className="text-xs text-muted-foreground pt-2 text-center">No chatters found.</span>
+            )}
           </div>
         </div>
       </div>
@@ -142,20 +184,25 @@ export default function StreamRewind() {
             />
           </div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
-            <MessageSquare size={11} />
+            {loading ? <Loader2 size={11} className="animate-spin" /> : <MessageSquare size={11} />}
             <span>{filtered.length} msgs</span>
           </div>
         </div>
 
         {/* Log */}
         <div className="flex-1 overflow-y-auto rounded-xl bg-card border border-border">
-          <div className="sticky top-0 flex items-center gap-4 px-4 py-2.5 bg-card border-b border-border">
+          <div className="sticky top-0 flex items-center gap-4 px-4 py-2.5 bg-card border-b border-border z-10">
             <span className="text-[10px] font-semibold text-muted-foreground tracking-widest uppercase w-16">Time</span>
             <span className="text-[10px] font-semibold text-muted-foreground tracking-widest uppercase w-28">User</span>
             <span className="text-[10px] font-semibold text-muted-foreground tracking-widest uppercase">Message</span>
           </div>
 
-          {filtered.map((msg, i) => (
+          {loading ? (
+             <div className="flex flex-col items-center justify-center py-16 gap-3">
+               <Loader2 size={24} className="text-primary animate-spin" />
+               <p className="text-sm text-muted-foreground">Pulling archive from MongoDB...</p>
+             </div>
+          ) : filtered.map((msg, i) => (
             <div
               key={i}
               className="flex items-start gap-4 px-4 py-2.5 border-b border-border/50 hover:bg-muted/20 transition-colors group"
@@ -171,10 +218,12 @@ export default function StreamRewind() {
             </div>
           ))}
 
-          {filtered.length === 0 && (
+          {!loading && filtered.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 gap-2">
               <Search size={24} className="text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">No messages found</p>
+              <p className="text-sm text-muted-foreground">
+                {search ? "No matching messages found." : "No messages recorded for this date."}
+              </p>
             </div>
           )}
         </div>
@@ -183,9 +232,9 @@ export default function StreamRewind() {
         <div className="flex items-center justify-between text-[11px] text-muted-foreground">
           <span>Showing {filtered.length} messages from MongoDB</span>
           <div className="flex items-center gap-1">
-            <button className="px-2.5 py-1 rounded border border-border hover:border-primary/30 hover:text-primary transition-colors">← Prev</button>
+            <button className="px-2.5 py-1 rounded border border-border hover:border-primary/30 hover:text-primary transition-colors disabled:opacity-50" disabled>← Prev</button>
             <span className="px-3 text-foreground font-semibold">1</span>
-            <button className="px-2.5 py-1 rounded border border-border hover:border-primary/30 hover:text-primary transition-colors">Next →</button>
+            <button className="px-2.5 py-1 rounded border border-border hover:border-primary/30 hover:text-primary transition-colors disabled:opacity-50" disabled>Next →</button>
           </div>
         </div>
       </div>
