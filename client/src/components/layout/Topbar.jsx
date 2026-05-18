@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
 import { Activity, Clock } from "lucide-react";
+import { io } from "socket.io-client";
+
+const API_URL = import.meta.env.VITE_API_URL;
+const socket = io(API_URL);
 
 const PAGE_LABELS = {
   dashboard: "Live Dashboard",
@@ -22,12 +26,16 @@ export default function TopBar({ page }) {
     return () => clearInterval(t);
   }, []);
 
-  // Simulate live msg counter ticking up
   useEffect(() => {
-    const t = setInterval(() => {
-      setMsgCount(n => n + Math.floor(Math.random() * 8 + 1));
-    }, 800);
-    return () => clearInterval(t);
+    const handleNewMessage = () => {
+      setMsgCount(prev => prev + 1);
+    };
+
+    socket.on("chat_message", handleNewMessage);
+
+    return () => {
+      socket.off("chat_message", handleNewMessage);
+    };
   }, []);
 
   return (
