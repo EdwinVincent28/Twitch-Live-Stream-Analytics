@@ -2,7 +2,8 @@ import { useEffect, useState, useRef } from "react";
 import { Star } from "lucide-react";
 import { io } from "socket.io-client";
 
-const socket = io("http://localhost:5000");
+const API_URL = import.meta.env.VITE_API_URL;
+const socket = io(API_URL);
 
 const TRACKED_EMOTES = [
   { name: "KEKW", count: 342, color: "var(--chart-1)" },

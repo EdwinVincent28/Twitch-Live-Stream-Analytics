@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, Loader2, Clock, Flame, MessageSquare, Sparkles } from "lucide-react";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const EXAMPLE_QUERIES = [
   "When was chat going absolutely crazy?",
   "Find moments when chat was hyped after a clutch",
@@ -8,15 +10,6 @@ const EXAMPLE_QUERIES = [
   "Find the most toxic moments",
   "When was chat laughing the most?",
 ];
-
-const MOCK_RESPONSE = {
-  answer: "Chat peaked at 10:42 PM with a hype score of 97/100 when 176 messages flooded in within 15 seconds. The crowd erupted with BAND, W, and o7 spam after Jynxzi nearly got someone banned for flaming in all chat. A second spike occurred at 10:44 PM (hype: 87) with similar energy around a clutch play.",
-  sources: [
-    { score: 0.89, start_time: "2026-05-01T22:42:00Z", end_time: "2026-05-01T22:42:15Z", message_count: 176, hype_score: 97, preview: "W BAND BAND o7 LOL BAND BAND gg banned W BAND THERES NOTHING BELOW IRON LOL..." },
-    { score: 0.74, start_time: "2026-05-01T22:44:00Z", end_time: "2026-05-01T22:44:15Z", message_count: 143, hype_score: 87, preview: "BANNEDDD GG TIME TO THROW W chatting BAND BAND You're getting banned for sure..." },
-    { score: 0.61, start_time: "2026-05-01T22:43:00Z", end_time: "2026-05-01T22:43:15Z", message_count: 91, hype_score: 60, preview: "good comms buyyyy He's a natural WW y u booly BANNEDDD GG barron move your head bro..." },
-  ]
-};
 
 function SourceCard({ source, index }) {
   const time = new Date(source.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -157,11 +150,16 @@ export default function ChatBot() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5000/api/search", {
+      const res = await fetch(`${API_URL}/api/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: q }),
       });
+
+      if (!res.ok) {
+        throw new Error(`Server Error: ${res.status}`);
+      }
+
       const data = await res.json();
 
       setMessages(prev => prev.map(m =>
@@ -170,14 +168,18 @@ export default function ChatBot() {
           : m
       ));
     } catch {
-      // Fallback to mock for demo
-      setTimeout(() => {
-        setMessages(prev => prev.map(m =>
-          m.id === loadingMsg.id
-            ? { ...m, loading: false, answer: MOCK_RESPONSE.answer, sources: MOCK_RESPONSE.sources }
-            : m
-        ));
-      }, 1800);
+      console.error("API Search Failed:", error);
+      
+      setMessages(prev => prev.map(m =>
+        m.id === loadingMsg.id
+          ? { 
+              ...m, 
+              loading: false, 
+              answer: "Error: Could not process your request. Please ensure the Node.js backend is running and Groq API keys are configured.", 
+              sources: [] 
+            }
+          : m
+      ));
     } finally {
       setLoading(false);
     }
