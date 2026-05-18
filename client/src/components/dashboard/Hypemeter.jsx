@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Activity } from "lucide-react";
+import { io } from "socket.io-client";
+
+const socket = io("http://localhost:5000");
 
 const MAX_POINTS = 40;
 
@@ -9,15 +12,32 @@ function generatePoint() {
 
 export default function HypeMeter() {
   const canvasRef = useRef(null);
-  const [data, setData] = useState(() => Array.from({ length: MAX_POINTS }, generatePoint));
+  const [data, setData] = useState(() => Array(MAX_POINTS).fill(0));
   const [current, setCurrent] = useState(0);
+
+  const msgCountRef = useRef(0);
+
+  useEffect(() => {
+    const handleNewMessage = () => {
+      msgCountRef.current += 1;
+    };
+
+    socket.on("chat_message", handleNewMessage);
+
+    return () => {
+      socket.off("chat_message", handleNewMessage);
+    };
+  }, []);
 
   useEffect(() => {
     const t = setInterval(() => {
-      const next = generatePoint();
-      setData(prev => [...prev.slice(1), next]);
-      setCurrent(next);
-    }, 600);
+      const msgsThisSecond = msgCountRef.current;
+      msgCountRef.current = 0; 
+
+      setData(prev => [...prev.slice(1), msgsThisSecond]);
+      setCurrent(msgsThisSecond);
+    }, 1000);
+
     return () => clearInterval(t);
   }, []);
 
