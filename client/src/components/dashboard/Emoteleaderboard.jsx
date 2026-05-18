@@ -1,7 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Star } from "lucide-react";
+import { io } from "socket.io-client";
 
-const EMOTE_POOL = [
+const socket = io("http://localhost:5000");
+
+const TRACKED_EMOTES = [
   { name: "KEKW", count: 342, color: "var(--chart-1)" },
   { name: "PogChamp", count: 287, color: "var(--chart-2)" },
   { name: "W", count: 251, color: "var(--chart-3)" },
@@ -9,21 +12,51 @@ const EMOTE_POOL = [
   { name: "LULW", count: 143, color: "var(--chart-5)" },
   { name: "o7", count: 98, color: "var(--chart-1)" },
   { name: "BAND", count: 76, color: "var(--chart-2)" },
+  { name: "L", color: "var(--hype-high)" }
 ];
 
 export default function EmoteLeaderboard() {
-  const [emotes, setEmotes] = useState(EMOTE_POOL);
+  const [emotes, setEmotes] = useState(
+    TRACKED_EMOTES.map(e => ({ ...e, count: 0 })).slice(0, 5)
+  );
 
-  // Simulate live updates
+  const countsRef = useRef({
+    KEKW: 0, PogChamp: 0, W: 0, Copium: 0, LULW: 0, o7: 0, BAND: 0, L: 0
+  });
+
+  useEffect(() => {
+    const handleNewMessage = (incomingMsg) => {
+      if (!incomingMsg.message) 
+        return;
+      
+      const words = incomingMsg.message.split(/\s+/);
+      
+      words.forEach(word => {
+        if (countsRef.current[word] !== undefined) {
+          countsRef.current[word] += 1;
+        }
+      });
+    };
+
+    socket.on("chat_message", handleNewMessage);
+
+    return () => {
+      socket.off("chat_message", handleNewMessage);
+    };
+  }, []);
+
   useEffect(() => {
     const t = setInterval(() => {
-      setEmotes(prev =>
-        [...prev]
-          .map(e => ({ ...e, count: e.count + Math.floor(Math.random() * 15) }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 5)
-      );
+      const currentCounts = countsRef.current;
+      
+      const sortedLeaderboard = TRACKED_EMOTES
+        .map(e => ({ ...e, count: currentCounts[e.name] }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+        
+      setEmotes(sortedLeaderboard);
     }, 2000);
+
     return () => clearInterval(t);
   }, []);
 
