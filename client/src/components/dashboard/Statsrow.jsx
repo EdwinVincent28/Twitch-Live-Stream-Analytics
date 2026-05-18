@@ -54,7 +54,7 @@ export default function StatsRow() {
 
     socket.on("chat_message", handleNewMessage);
 
-    const t = setInterval(() => {
+  const t = setInterval(() => {
       const now = Date.now();
       const oneMinuteAgo = now - 60000;
       const fifteenSecondsAgo = now - 15000;
@@ -62,13 +62,14 @@ export default function StatsRow() {
       historyRef.current = historyRef.current.filter(m => m.timestamp >= oneMinuteAgo);
       const recentMessages = historyRef.current;
 
-      const msgsPerMin = recentMessages.length;
+      const recent15sMessages = recentMessages.filter(m => m.timestamp >= fifteenSecondsAgo);
+
+      const msgsPerMin = recent15sMessages.length * 4;
 
       const uniqueUsers = new Set(recentMessages.map(m => m.username));
       const activeChatters = uniqueUsers.size;
 
-      const recent15s = recentMessages.filter(m => m.timestamp >= fifteenSecondsAgo).length;
-      const msgsPerSecond = recent15s / 15;
+      const msgsPerSecond = recent15sMessages.length / 15;
       const hypeScore = Math.min(100, Math.round(msgsPerSecond * 5));
 
       setStats(prev => ({
