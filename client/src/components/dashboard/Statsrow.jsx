@@ -1,22 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { MessageSquare, Users, Flame, TrendingUp } from "lucide-react";
+import { io } from "socket.io-client";
+
+const API_URL = import.meta.env.VITE_API_URL;
+const socket = io(API_URL);
 
 function StatCard({ icon: Icon, label, value, unit, color, delta }) {
-  const [display, setDisplay] = useState(0);
-
-  useEffect(() => {
-    // Animate count up
-    const target = Number(String(value).replace(/,/g, ""));
-    if (isNaN(target)) return;
-    let start = 0;
-    const step = Math.ceil(target / 30);
-    const t = setInterval(() => {
-      start = Math.min(start + step, target);
-      setDisplay(start);
-      if (start >= target) clearInterval(t);
-    }, 20);
-    return () => clearInterval(t);
-  }, [value]);
 
   return (
     <div className="relative flex flex-col gap-3 p-4 rounded-xl bg-card border border-border overflow-hidden group hover:border-primary/30 transition-colors duration-200">
@@ -36,7 +25,7 @@ function StatCard({ icon: Icon, label, value, unit, color, delta }) {
 
       <div>
         <p className="text-2xl font-bold tracking-tight text-foreground">
-          {typeof display === "number" ? display.toLocaleString() : value}
+          {typeof value === "number" ? value.toLocaleString() : value}
           {unit && <span className="text-sm font-normal text-muted-foreground ml-1">{unit}</span>}
         </p>
         <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
@@ -45,17 +34,68 @@ function StatCard({ icon: Icon, label, value, unit, color, delta }) {
   );
 }
 
-export default function StatsRow({ stats }) {
-  const defaults = [
-    { icon: MessageSquare, label: "Messages / min", value: stats?.msgsPerMin ?? 142, unit: "", color: "text-primary", delta: 12 },
-    { icon: Users, label: "Active Chatters", value: stats?.activeChatters ?? 1847, unit: "", color: "text-[var(--chart-2)]", delta: 5 },
-    { icon: Flame, label: "Hype Score", value: stats?.hypeScore ?? 73, unit: "/ 100", color: "text-[var(--hype-mid)]", delta: 8 },
-    { icon: TrendingUp, label: "Chunks in Qdrant", value: stats?.qdrantChunks ?? 312, unit: "", color: "text-[var(--chart-3)]", delta: 3 },
+export default function StatsRow() {
+  const [stats, setStats] = useState({
+    msgsPerMin: 0,
+    activeChatters: 0,
+    hypeScore: 0,
+    qdrantChunks: 312
+  });
+
+  const historyRef = useRef([]);
+
+  useEffect(() => {
+    const handleNewMessage = (msg) => {
+      historyRef.current.push({
+        timestamp: Date.now(),
+        username: msg.username
+      });
+    };
+
+    socket.on("chat_message", handleNewMessage);
+
+    const t = setInterval(() => {
+      const now = Date.now();
+      const oneMinuteAgo = now - 60000;
+      const fifteenSecondsAgo = now - 15000;
+
+      historyRef.current = historyRef.current.filter(m => m.timestamp >= oneMinuteAgo);
+      const recentMessages = historyRef.current;
+
+      const msgsPerMin = recentMessages.length;
+
+      const uniqueUsers = new Set(recentMessages.map(m => m.username));
+      const activeChatters = uniqueUsers.size;
+
+      const recent15s = recentMessages.filter(m => m.timestamp >= fifteenSecondsAgo).length;
+      const msgsPerSecond = recent15s / 15;
+      const hypeScore = Math.min(100, Math.round(msgsPerSecond * 5));
+
+      setStats(prev => ({
+        ...prev,
+        msgsPerMin,
+        activeChatters,
+        hypeScore
+      }));
+
+    }, 1000);
+
+    return () => {
+      socket.off("chat_message", handleNewMessage);
+      clearInterval(t);
+    };
+  }, []);
+
+  const statCards = [
+    { icon: MessageSquare, label: "Messages / min", value: stats.msgsPerMin, unit: "", color: "text-primary", delta: 12 },
+    { icon: Users, label: "Active Chatters", value: stats.activeChatters, unit: "", color: "text-[var(--chart-2)]", delta: 5 },
+    { icon: Flame, label: "Hype Score", value: stats.hypeScore, unit: "/ 100", color: "text-[var(--hype-mid)]", delta: 8 },
+    { icon: TrendingUp, label: "Chunks in Qdrant", value: stats.qdrantChunks, unit: "", color: "text-[var(--chart-3)]", delta: 3 },
   ];
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      {defaults.map((s, i) => (
+      {statCards.map((s, i) => (
         <StatCard key={i} {...s} />
       ))}
     </div>
